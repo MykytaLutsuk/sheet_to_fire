@@ -13,33 +13,52 @@ namespace Shared
         public Button uploadFirebaseCredentialsButton;
         public TMP_Text statusText;
 
-        private string _sheetsCredentialsPath;
+        private const string GoogleCredentialsName = "google_credentials.json";
+        private const string FirebaseCredentialsName = "firebase_credentials.json";
+        
+        private string _googleCredentialsPath;
         private string _firebaseCredentialsPath;
 
         private void Start()
         {
-            _sheetsCredentialsPath = Path.Combine(Application.persistentDataPath, "google_credentials.json");
-            _firebaseCredentialsPath = Path.Combine(Application.persistentDataPath, "firebase_credentials.json");
+            _googleCredentialsPath = Path.Combine(Application.persistentDataPath, GoogleCredentialsName);
+            _firebaseCredentialsPath = Path.Combine(Application.persistentDataPath, FirebaseCredentialsName);
 
             CheckExistingFiles();
 
-            uploadGoogleCredentialsButton.onClick.AddListener(() => UploadFile("google_credentials.json", _sheetsCredentialsPath));
-            uploadFirebaseCredentialsButton.onClick.AddListener(() => UploadFile("firebase_credentials.json", _firebaseCredentialsPath));
+            uploadGoogleCredentialsButton.onClick.AddListener(() => UploadFile(GoogleCredentialsName, _googleCredentialsPath));
+            uploadFirebaseCredentialsButton.onClick.AddListener(() => UploadFile(FirebaseCredentialsName, _firebaseCredentialsPath));
         }
 
         private void CheckExistingFiles()
         {
-            bool sheetsExists = File.Exists(_sheetsCredentialsPath);
+            bool sheetsExists = File.Exists(_googleCredentialsPath);
             bool firebaseExists = File.Exists(_firebaseCredentialsPath);
 
             if (sheetsExists && firebaseExists)
             {
-                statusText.text = "Both credentials files found. You can proceed.";
+                statusText.text = "Both credentials files are uploaded successfully. You can proceed to the next step.";
+                uploadGoogleCredentialsButton.interactable = false;
+                uploadFirebaseCredentialsButton.interactable = false;
                 ProceedToNextScene();
+            }
+            else if (sheetsExists)
+            {
+                statusText.text = "Google Sheets credentials uploaded. Please upload Firebase credentials to proceed.";
+                uploadGoogleCredentialsButton.interactable = false;
+                uploadFirebaseCredentialsButton.interactable = true;
+            }
+            else if (firebaseExists)
+            {
+                statusText.text = "Firebase credentials uploaded. Please upload Google Sheets credentials to proceed.";
+                uploadGoogleCredentialsButton.interactable = true;
+                uploadFirebaseCredentialsButton.interactable = false;
             }
             else
             {
-                statusText.text = "Please upload both credentials files.";
+                statusText.text = "No credentials found. Please upload both Google Sheets and Firebase credentials to proceed.";
+                uploadGoogleCredentialsButton.interactable = true;
+                uploadFirebaseCredentialsButton.interactable = true;
             }
         }
 
@@ -48,7 +67,7 @@ namespace Shared
             string path = FilePicker.ShowFilePicker($"Select {fileName}", "json");
             if (string.IsNullOrEmpty(path))
             {
-                statusText.text = $"No file selected for {fileName}.";
+                statusText.text = $"No file selected for {fileName}. Please try again.";
                 return;
             }
 
@@ -79,7 +98,7 @@ namespace Shared
 
         private void ProceedToNextScene()
         {
-            CredentialsManager.SheetsCredentialsPath = _sheetsCredentialsPath;
+            CredentialsManager.SheetsCredentialsPath = _googleCredentialsPath;
             CredentialsManager.FirebaseCredentialsPath = _firebaseCredentialsPath;
             SceneManager.LoadScene("DataManager");
         }
