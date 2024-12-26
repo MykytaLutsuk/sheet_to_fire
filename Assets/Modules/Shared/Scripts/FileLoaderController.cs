@@ -11,28 +11,29 @@ namespace Shared
         [Header("UI Elements")]
         public Button uploadGoogleCredentialsButton;
         public Button uploadFirebaseCredentialsButton;
+        public Button loadMainSceneButton;
+        public Button deleteCredentialsButton;
         public TMP_Text statusText;
 
-        private const string GoogleCredentialsName = "google_credentials.json";
-        private const string FirebaseCredentialsName = "firebase_credentials.json";
-        
-        private string _googleCredentialsPath;
+        private string _sheetsCredentialsPath;
         private string _firebaseCredentialsPath;
 
         private void Start()
         {
-            _googleCredentialsPath = Path.Combine(Application.persistentDataPath, GoogleCredentialsName);
-            _firebaseCredentialsPath = Path.Combine(Application.persistentDataPath, FirebaseCredentialsName);
+            _sheetsCredentialsPath = Path.Combine(Application.persistentDataPath, "google_credentials.json");
+            _firebaseCredentialsPath = Path.Combine(Application.persistentDataPath, "firebase_credentials.json");
 
             CheckExistingFiles();
 
-            uploadGoogleCredentialsButton.onClick.AddListener(() => UploadFile(GoogleCredentialsName, _googleCredentialsPath));
-            uploadFirebaseCredentialsButton.onClick.AddListener(() => UploadFile(FirebaseCredentialsName, _firebaseCredentialsPath));
+            uploadGoogleCredentialsButton.onClick.AddListener(() => UploadFile("google_credentials.json", _sheetsCredentialsPath));
+            uploadFirebaseCredentialsButton.onClick.AddListener(() => UploadFile("firebase_credentials.json", _firebaseCredentialsPath));
+            loadMainSceneButton.onClick.AddListener(LoadMainScene);
+            deleteCredentialsButton.onClick.AddListener(DeleteCredentials);
         }
 
         private void CheckExistingFiles()
         {
-            bool sheetsExists = File.Exists(_googleCredentialsPath);
+            bool sheetsExists = File.Exists(_sheetsCredentialsPath);
             bool firebaseExists = File.Exists(_firebaseCredentialsPath);
 
             if (sheetsExists && firebaseExists)
@@ -40,25 +41,32 @@ namespace Shared
                 statusText.text = "Both credentials files are uploaded successfully. You can proceed to the next step.";
                 uploadGoogleCredentialsButton.interactable = false;
                 uploadFirebaseCredentialsButton.interactable = false;
-                ProceedToNextScene();
+                loadMainSceneButton.interactable = true;
+                deleteCredentialsButton.interactable = true;
             }
             else if (sheetsExists)
             {
                 statusText.text = "Google Sheets credentials uploaded. Please upload Firebase credentials to proceed.";
                 uploadGoogleCredentialsButton.interactable = false;
                 uploadFirebaseCredentialsButton.interactable = true;
+                loadMainSceneButton.interactable = false;
+                deleteCredentialsButton.interactable = true;
             }
             else if (firebaseExists)
             {
                 statusText.text = "Firebase credentials uploaded. Please upload Google Sheets credentials to proceed.";
                 uploadGoogleCredentialsButton.interactable = true;
                 uploadFirebaseCredentialsButton.interactable = false;
+                loadMainSceneButton.interactable = false;
+                deleteCredentialsButton.interactable = true;
             }
             else
             {
                 statusText.text = "No credentials found. Please upload both Google Sheets and Firebase credentials to proceed.";
                 uploadGoogleCredentialsButton.interactable = true;
                 uploadFirebaseCredentialsButton.interactable = true;
+                loadMainSceneButton.interactable = false;
+                deleteCredentialsButton.interactable = false;
             }
         }
 
@@ -96,11 +104,27 @@ namespace Shared
             }
         }
 
-        private void ProceedToNextScene()
+        private void LoadMainScene()
         {
-            CredentialsManager.SheetsCredentialsPath = _googleCredentialsPath;
+            CredentialsManager.SheetsCredentialsPath = _sheetsCredentialsPath;
             CredentialsManager.FirebaseCredentialsPath = _firebaseCredentialsPath;
-            SceneManager.LoadScene("DataManager");
+            SceneManager.LoadScene("MainScene");
+        }
+
+        private void DeleteCredentials()
+        {
+            if (File.Exists(_sheetsCredentialsPath))
+            {
+                File.Delete(_sheetsCredentialsPath);
+            }
+
+            if (File.Exists(_firebaseCredentialsPath))
+            {
+                File.Delete(_firebaseCredentialsPath);
+            }
+
+            statusText.text = "Credentials files deleted. Please upload both files to proceed.";
+            CheckExistingFiles();
         }
     }
 }
