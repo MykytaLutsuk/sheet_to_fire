@@ -26,7 +26,7 @@ namespace GoogleSheetsIntegration
 
             if (string.IsNullOrEmpty(credentialsPath))
             {
-                Debug.LogError("No credentials file provided.");
+                PopupManager.Instance.ShowSimplePopup("No credentials file provided.");
                 return;
             }
             
@@ -48,7 +48,7 @@ namespace GoogleSheetsIntegration
             string id = spreadsheetInputField.text.Trim();
             if (string.IsNullOrEmpty(id))
             {
-                Debug.LogWarning("Spreadsheet ID is empty. Please enter a valid ID.");
+                PopupManager.Instance.ShowSimplePopup("Spreadsheet ID is empty. Please enter a valid ID.");
                 return;
             }
 
@@ -58,7 +58,7 @@ namespace GoogleSheetsIntegration
 
                 if (tableNames.Count == 0)
                 {
-                    Debug.LogWarning($"No sheets found for Spreadsheet ID: {id}. ID will not be added.");
+                    PopupManager.Instance.ShowSimplePopup($"No sheets found for Spreadsheet ID: {id}. ID will not be added.");
                     return;
                 }
 
@@ -67,17 +67,17 @@ namespace GoogleSheetsIntegration
                 _model.SaveToFile();
 
                 UpdateSpreadsheetDropdown();
-                Debug.Log($"Spreadsheet ID {id} added successfully.");
+                PopupManager.Instance.ShowSimplePopup($"Spreadsheet ID {id} added successfully.");
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Failed to validate Spreadsheet ID: {id}. Error: {ex.Message}");
+                PopupManager.Instance.ShowSimplePopup($"Failed to validate Spreadsheet ID: {id}. Error: {ex.Message}");
             }
         }
 
         private void RemoveSpreadsheet()
         {
-            string id = spreadsheetInputField.text.Trim();
+            string id = spreadsheetDropdown.options[spreadsheetDropdown.value].text;
             if (!string.IsNullOrEmpty(id))
             {
                 _model.RemoveSpreadsheetID(id);
@@ -85,6 +85,11 @@ namespace GoogleSheetsIntegration
                 _model.SaveToFile();
 
                 UpdateSpreadsheetDropdown();
+                PopupManager.Instance.ShowSimplePopup($"Spreadsheet ID {id} removed successfully.");
+            }
+            else
+            {
+                PopupManager.Instance.ShowSimplePopup("No Spreadsheet ID provided for removal.");
             }
         }
 
@@ -95,22 +100,29 @@ namespace GoogleSheetsIntegration
 
             if (string.IsNullOrEmpty(spreadsheetId) || string.IsNullOrEmpty(sheetName))
             {
-                Debug.LogWarning("Spreadsheet ID or Sheet Name is empty.");
+                PopupManager.Instance.ShowSimplePopup("Spreadsheet ID or Sheet Name is empty.");
                 return;
             }
 
-            var tableContent = _sheetsHelper.GetTableContent(spreadsheetId, sheetName);
-            if (tableContent.Count == 0)
+            try
             {
-                Debug.LogWarning("No data found in the selected table.");
-                return;
+                var tableContent = _sheetsHelper.GetTableContent(spreadsheetId, sheetName);
+                if (tableContent.Count == 0)
+                {
+                    PopupManager.Instance.ShowSimplePopup("No data found in the selected table.");
+                    return;
+                }
+
+                string outputPath = Path.Combine(Application.persistentDataPath, "output.json");
+                _sheetsHelper.SaveTableToJson(tableContent, outputPath);
+                FileOpener.OpenFile(outputPath);
+
+                PopupManager.Instance.ShowSimplePopup($"Table content saved to {outputPath}");
             }
-
-            string outputPath = Path.Combine(Application.persistentDataPath, "output.json");
-            _sheetsHelper.SaveTableToJson(tableContent, outputPath);
-            FileOpener.OpenFile(outputPath);
-
-            Debug.Log($"Table content saved to {outputPath}");
+            catch (System.Exception ex)
+            {
+                PopupManager.Instance.ShowSimplePopup($"Failed to fetch or parse content. Error: {ex.Message}");
+            }
         }
 
         private void UpdateSpreadsheetDropdown()
@@ -132,7 +144,7 @@ namespace GoogleSheetsIntegration
         {
             if (spreadsheetIndex < 0 || spreadsheetIndex >= _model.SpreadsheetIDs.Count)
             {
-                Debug.LogWarning("Invalid spreadsheet index.");
+                PopupManager.Instance.ShowSimplePopup("Invalid spreadsheet index.");
                 tableDropdown.ClearOptions();
                 return;
             }
@@ -144,10 +156,11 @@ namespace GoogleSheetsIntegration
 
                 tableDropdown.ClearOptions();
                 tableDropdown.AddOptions(tableNames);
+                PopupManager.Instance.ShowSimplePopup($"Loaded {tableNames.Count} tables for Spreadsheet ID: {selectedID}");
             }
             catch (System.Exception ex)
             {
-                Debug.LogError($"Failed to load table names for spreadsheet ID: {selectedID}. Error: {ex.Message}");
+                PopupManager.Instance.ShowSimplePopup($"Failed to load table names for Spreadsheet ID: {selectedID}. Error: {ex.Message}");
                 tableDropdown.ClearOptions();
             }
         }
