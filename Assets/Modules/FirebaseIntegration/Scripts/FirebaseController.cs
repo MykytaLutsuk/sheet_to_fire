@@ -28,7 +28,7 @@ namespace FirebaseIntegration
 
             if (string.IsNullOrEmpty(serviceAccountPath) || !File.Exists(serviceAccountPath))
             {
-                Debug.LogError("Firebase service account file not found.");
+                PopupManager.Instance.ShowSimplePopup("Firebase service account file not found.");
                 return;
             }
 
@@ -64,23 +64,23 @@ namespace FirebaseIntegration
 
             if (string.IsNullOrEmpty(projectId))
             {
-                Debug.LogWarning("Project ID is empty. Please enter a valid Project ID.");
+                PopupManager.Instance.ShowSimplePopup("Project ID is empty. Please enter a valid Project ID.");
                 return;
             }
 
             if (_firebaseModel.ProjectIds.Contains(projectId))
             {
-                Debug.LogWarning($"Project ID {projectId} already exists in the list.");
+                PopupManager.Instance.ShowSimplePopup($"Project ID {projectId} already exists in the list.");
                 return;
             }
 
-            Debug.Log($"Fetching variables for project: {projectId}");
+            PopupManager.Instance.ShowSimplePopup($"Fetching variables for project: {projectId}");
             _firebaseHelper.SetProjectId(projectId);
             List<string> variables = await _firebaseHelper.GetRemoteConfigVariablesAsync();
 
             if (variables == null || variables.Count == 0)
             {
-                Debug.LogWarning($"No variables found for project: {projectId}. Project not added.");
+                PopupManager.Instance.ShowSimplePopup($"No variables found for project: {projectId}. Project not added.");
                 return;
             }
 
@@ -90,7 +90,7 @@ namespace FirebaseIntegration
 
             await FetchVariables(projectId);
 
-            Debug.Log($"Project ID {projectId} added successfully with {variables.Count} variables.");
+            PopupManager.Instance.ShowSimplePopup($"Project ID {projectId} added successfully with {variables.Count} variables.");
         }
 
         private void RemoveProject()
@@ -99,7 +99,7 @@ namespace FirebaseIntegration
 
             if (string.IsNullOrEmpty(selectedProject))
             {
-                Debug.LogWarning("No project selected to remove.");
+                PopupManager.Instance.ShowSimplePopup("No project selected to remove.");
                 return;
             }
 
@@ -107,32 +107,37 @@ namespace FirebaseIntegration
             _firebaseModel.SaveToFile();
             UpdateProjectsDropdown();
 
-            Debug.Log($"Project ID {selectedProject} removed successfully.");
+            PopupManager.Instance.ShowSimplePopup($"Project ID {selectedProject} removed successfully.");
         }
 
         private void UpdateProjectsDropdown()
         {
             projectsDropdown.ClearOptions();
             projectsDropdown.AddOptions(_firebaseModel.ProjectIds);
+
+            if (_firebaseModel.ProjectIds.Count <= 0)
+            {
+                variablesDropdown.ClearOptions();
+            }
         }
 
         private async Task FetchVariables(string projectId)
         {
-            Debug.Log($"Fetching Remote Config variables for project: {projectId}");
+            PopupManager.Instance.ShowSimplePopup($"Fetching Remote Config variables for project: {projectId}");
             _firebaseHelper.SetProjectId(projectId);
 
             List<string> variables = await _firebaseHelper.GetRemoteConfigVariablesAsync();
 
             if (variables == null || variables.Count == 0)
             {
-                Debug.LogWarning($"No variables found for project: {projectId}");
+                PopupManager.Instance.ShowSimplePopup($"No variables found for project: {projectId}");
                 variablesDropdown.ClearOptions();
                 return;
             }
 
             variablesDropdown.ClearOptions();
             variablesDropdown.AddOptions(variables);
-            Debug.Log($"Loaded {variables.Count} variables for project: {projectId}");
+            PopupManager.Instance.ShowSimplePopup($"Loaded {variables.Count} variables for project: {projectId}");
         }
 
         private void UploadJson()
@@ -142,18 +147,19 @@ namespace FirebaseIntegration
 
             if (string.IsNullOrEmpty(selectedProject) || string.IsNullOrEmpty(selectedVariable))
             {
-                Debug.LogWarning("Please select a project and a variable.");
+                PopupManager.Instance.ShowSimplePopup("Please select a project and a variable.");
                 return;
             }
 
             if (!File.Exists(_outputFilePath))
             {
-                Debug.LogError("Output file not found.");
+                PopupManager.Instance.ShowSimplePopup("Output file not found.");
                 return;
             }
 
             string jsonContent = File.ReadAllText(_outputFilePath);
             _firebaseHelper.UpdateRemoteConfigAsync(selectedVariable, jsonContent);
+            PopupManager.Instance.ShowSimplePopup("Remote Config updated successfully.");
         }
 
         private string GetSelectedProject()
