@@ -22,6 +22,8 @@ namespace FirebaseIntegration
         private string _outputFilePath;
         private FirebaseModel _firebaseModel;
 
+        private const string OutputFileName = "output.json";
+
         private async void Start()
         {
             string serviceAccountPath = CredentialsManager.FirebaseCredentialsPath;
@@ -33,15 +35,15 @@ namespace FirebaseIntegration
             }
 
             _firebaseHelper = new FirebaseHelper(serviceAccountPath);
-            _outputFilePath = Path.Combine(Application.persistentDataPath, "output.json");
+            _outputFilePath = Path.Combine(Application.persistentDataPath, OutputFileName);
             _firebaseModel = new FirebaseModel();
 
             _firebaseModel.LoadFromFile();
             UpdateProjectsDropdown();
 
-            addProjectButton.onClick.AddListener(async () => await AddProject());
-            removeProjectButton.onClick.AddListener(RemoveProject);
-            uploadJsonButton.onClick.AddListener(UploadJson);
+            addProjectButton.onClick.AddListener(OnAddProjectButtonClick);
+            removeProjectButton.onClick.AddListener(OnRemoveProjectButtonClick);
+            uploadJsonButton.onClick.AddListener(OnUploadJsonButtonClick);
 
             if (_firebaseModel.ProjectIds.Count > 0)
             {
@@ -56,6 +58,21 @@ namespace FirebaseIntegration
                     await FetchVariables(selectedProject);
                 }
             });
+        }
+
+        private async void OnAddProjectButtonClick()
+        {
+            await AddProject();
+        }
+
+        private void OnRemoveProjectButtonClick()
+        {
+            RemoveProject();
+        }
+
+        private async void OnUploadJsonButtonClick()
+        {
+            await UploadJson();
         }
 
         private async Task AddProject()
@@ -76,9 +93,9 @@ namespace FirebaseIntegration
 
             PopupManager.Instance.ShowSimplePopup($"Fetching variables for project: {projectId}");
             _firebaseHelper.SetProjectId(projectId);
-            List<string> variables = await _firebaseHelper.GetRemoteConfigVariablesAsync();
+            RemoteConfigResponse remoteConfig = await _firebaseHelper.GetRemoteConfigAsync();
 
-            if (variables == null || variables.Count == 0)
+            if (remoteConfig == null || remoteConfig.Parameters.Count == 0)
             {
                 PopupManager.Instance.ShowSimplePopup($"No variables found for project: {projectId}. Project not added.");
                 return;
@@ -90,7 +107,7 @@ namespace FirebaseIntegration
 
             await FetchVariables(projectId);
 
-            PopupManager.Instance.ShowSimplePopup($"Project ID {projectId} added successfully with {variables.Count} variables.");
+            PopupManager.Instance.ShowSimplePopup($"Project ID {projectId} added successfully.");
         }
 
         private void RemoveProject()
@@ -110,6 +127,41 @@ namespace FirebaseIntegration
             PopupManager.Instance.ShowSimplePopup($"Project ID {selectedProject} removed successfully.");
         }
 
+        private async Task FetchVariables(string projectId)
+        {
+            PopupManager.Instance.ShowSimplePopup($"Fetching Remote Config variables for project: {projectId}");
+            _firebaseHelper.SetProjectId(projectId);
+
+            RemoteConfigResponse remoteConfig = await _firebaseHelper.GetRemoteConfigAsync();
+
+            if (remoteConfig == null || remoteConfig.Parameters == null || remoteConfig.Parameters.Count == 0)
+            {
+                PopupManager.Instance.ShowSimplePopup($"No variables found for project: {projectId}");
+                variablesDropdown.ClearOptions();
+                return;
+            }
+
+            var jsonVariables = new List<string>();
+            foreach (var parameter in remoteConfig.Parameters)
+            {
+                if (parameter.Value.ValueType == "JSON")
+                {
+                    jsonVariables.Add(parameter.Key);
+                }
+            }
+
+            if (jsonVariables.Count == 0)
+            {
+                PopupManager.Instance.ShowSimplePopup($"No JSON variables found for project: {projectId}");
+                variablesDropdown.ClearOptions();
+                return;
+            }
+
+            variablesDropdown.ClearOptions();
+            variablesDropdown.AddOptions(jsonVariables);
+            PopupManager.Instance.ShowSimplePopup($"Loaded {jsonVariables.Count} JSON variables for project: {projectId}");
+        }
+
         private void UpdateProjectsDropdown()
         {
             projectsDropdown.ClearOptions();
@@ -121,26 +173,7 @@ namespace FirebaseIntegration
             }
         }
 
-        private async Task FetchVariables(string projectId)
-        {
-            PopupManager.Instance.ShowSimplePopup($"Fetching Remote Config variables for project: {projectId}");
-            _firebaseHelper.SetProjectId(projectId);
-
-            List<string> variables = await _firebaseHelper.GetRemoteConfigVariablesAsync();
-
-            if (variables == null || variables.Count == 0)
-            {
-                PopupManager.Instance.ShowSimplePopup($"No variables found for project: {projectId}");
-                variablesDropdown.ClearOptions();
-                return;
-            }
-
-            variablesDropdown.ClearOptions();
-            variablesDropdown.AddOptions(variables);
-            PopupManager.Instance.ShowSimplePopup($"Loaded {variables.Count} variables for project: {projectId}");
-        }
-
-        private void UploadJson()
+        private async Task UploadJson()
         {
             string selectedProject = GetSelectedProject();
             string selectedVariable = GetSelectedVariable();
@@ -156,10 +189,42 @@ namespace FirebaseIntegration
                 PopupManager.Instance.ShowSimplePopup("Output file not found.");
                 return;
             }
+            
+            uploadJsonButton.interactable = false;
 
             string jsonContent = File.ReadAllText(_outputFilePath);
-            _firebaseHelper.UpdateRemoteConfigAsync(selectedVariable, jsonContent);
-            PopupManager.Instance.ShowSimplePopup("Remote Config updated successfully.");
+
+            RemoteConfigResponse remoteConfig = await _firebaseHelper.GetRemoteConfigAsync();
+            if (remoteConfig == null || remoteConfig.Parameters == null)
+            {
+                PopupManager.Instance.ShowSimplePopup("Failed to fetch existing Remote Config variables.");
+                return;
+            }
+
+            if (remoteConfig.Parameters.TryGetValue(selectedVariable, out var parameter))
+            {
+                parameter.DefaultValue.Value = jsonContent;
+            }
+            else
+            {
+                remoteConfig.Parameters[selectedVariable] = new RemoteConfigParameter
+                {
+                    DefaultValue = new DefaultValue { Value = jsonContent },
+                    ValueType = "JSON"
+                };
+            }
+
+            bool success = await _firebaseHelper.UpdateRemoteConfigAsync(remoteConfig.Parameters);
+            if (success)
+            {
+                PopupManager.Instance.ShowSimplePopup("Remote Config updated successfully.");
+            }
+            else
+            {
+                PopupManager.Instance.ShowSimplePopup("Failed to update Remote Config.");
+            }
+            
+            uploadJsonButton.interactable = true;
         }
 
         private string GetSelectedProject()
