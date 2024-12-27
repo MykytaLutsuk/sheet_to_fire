@@ -23,7 +23,20 @@ namespace FirebaseIntegration
         private FirebaseModel _firebaseModel;
 
         private const string OutputFileName = "output.json";
-
+        
+        public async void RefreshData()
+        {
+            UpdateProjectsDropdown();
+    
+            string selectedProject = GetSelectedProject();
+            if (!string.IsNullOrEmpty(selectedProject))
+            {
+                await FetchVariables(selectedProject);
+            }
+    
+            PopupManager.Instance.ShowSimplePopup("Dropdowns updated successfully.");
+        }
+        
         private async void Start()
         {
             string serviceAccountPath = CredentialsManager.FirebaseCredentialsPath;

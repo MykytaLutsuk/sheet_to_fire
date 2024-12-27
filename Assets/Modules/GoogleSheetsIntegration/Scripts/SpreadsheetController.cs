@@ -20,6 +20,12 @@ namespace GoogleSheetsIntegration
         private SpreadsheetModel _model;
         private GoogleSheetsHelper _sheetsHelper;
         
+        public void RefreshData()
+        {
+            UpdateSpreadsheetDropdown();
+            PopupManager.Instance.ShowSimplePopup("Dropdowns updated successfully.");
+        }
+        
         private void Start()
         {
             string credentialsPath = CredentialsManager.SheetsCredentialsPath;;
